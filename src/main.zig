@@ -68,9 +68,9 @@ const Context = struct {
     }
 };
 
-test "basic add functionality" {
-    c.ggml_time_init(); // Need this, or we face Illegal Instruction (core dumped) on Windows
+// Units tests
 
+test "basic add functionality" {
     var ctx0 = try Context.init(.{ .mem_size = 128 * 1024 * 1024 });
     defer ctx0.deinit();
 
