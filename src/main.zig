@@ -100,16 +100,16 @@ const Tensor = extern struct {
     }
 
     pub fn setZero(tensor: *Tensor) *Tensor {
-        return @ptrCast(*Tensor, c.ggml_tensor_set_zero(@ptrCast(c.ggml_tensor, tensor)).?);
+        return @ptrCast(c.ggml_tensor_set_zero(@ptrCast(tensor)).?);
     }
 
     pub fn set(tensor: *Tensor, value: anytype) *Tensor {
         _ = switch (@TypeOf(value)) {
-            i32 => c.ggml_set_i32(@ptrCast(*c.ggml_tensor, tensor), value),
-            f32 => c.ggml_set_f32(@ptrCast(*c.ggml_tensor, tensor), value),
+            i32 => c.ggml_set_i32(@ptrCast(tensor), value),
+            f32 => c.ggml_set_f32(@ptrCast(tensor), value),
 
-            comptime_int => c.ggml_set_i32(@ptrCast(*c.ggml_tensor, tensor), @intCast(i32, value)),
-            comptime_float => c.ggml_set_i32(@ptrCast(*c.ggml_tensor, tensor), @floatCast(f32, value)),
+            comptime_int => c.ggml_set_i32(@ptrCast(tensor), @intCast(value)),
+            comptime_float => c.ggml_set_i32(@ptrCast(tensor), @intFromFloat(value)),
 
             else => @compileError("Unsupported type"),
         };
@@ -118,24 +118,24 @@ const Tensor = extern struct {
     }
 
     pub fn get1d(tensor: *const Tensor, comptime dtype: type, index: usize) dtype {
-        const i: c_int = @intCast(c_int, index);
+        const i: c_int = @intCast(index);
 
         switch (dtype) {
-            i32 => return @intCast(i32, c.ggml_get_i32_1d(@ptrCast(*const c.ggml_tensor, tensor), i)),
-            f32 => return @floatCast(f32, c.ggml_get_f32_1d(@ptrCast(*const c.ggml_tensor, tensor), i)),
+            i32 => return @intCast(c.ggml_get_i32_1d(@ptrCast(tensor), i)),
+            f32 => return @floatCast(c.ggml_get_f32_1d(@ptrCast(tensor), i)),
             else => @compileError("Unsupported type"),
         }
     }
 
     pub fn set1d(tensor: *Tensor, index: usize, value: anytype) *Tensor {
-        const i: c_int = @intCast(c_int, index);
+        const i: c_int = @intCast(index);
 
         switch (@TypeOf(value)) {
-            i32 => c.ggml_set_i32_1d(@ptrCast(*c.ggml_tensor, tensor), i, value),
-            f32 => c.ggml_set_f32_1d(@ptrCast(*c.ggml_tensor, tensor), i, value),
+            i32 => c.ggml_set_i32_1d(@ptrCast(tensor), i, value),
+            f32 => c.ggml_set_f32_1d(@ptrCast(tensor), i, value),
 
-            comptime_int => c.ggml_set_i32_1d(@ptrCast(*c.ggml_tensor, tensor), @intCast(i32, value)),
-            comptime_float => c.ggml_set_f32_1d(@ptrCast(*c.ggml_tensor, tensor), @floatCast(f32, value)),
+            comptime_int => c.ggml_set_i32_1d(@ptrCast(tensor), @intCast(value)),
+            comptime_float => c.ggml_set_f32_1d(@ptrCast(tensor), @floatCast(value)),
 
             else => @compileError("Unsupported type"),
         }
@@ -147,11 +147,11 @@ const Tensor = extern struct {
         switch (dtype) {
             i32 => {
                 assert(tensor.dtype == DataType.i32);
-                return @ptrCast([*]i32, @alignCast(@alignOf(i32), tensor.data));
+                return @ptrCast(@alignCast(tensor.data));
             },
             f32 => {
                 assert(tensor.dtype == DataType.f32);
-                return @ptrCast([*]f32, @alignCast(@alignOf(f32), tensor.data));
+                return @ptrCast(@alignCast(tensor.data));
             },
             else => @compileError("Unsupported type"),
         }
@@ -170,7 +170,7 @@ const Context = struct {
         assert(params.mem_size > 0);
         assert(params.mem_buffer == null or params.mem_buffer.?.len >= params.mem_size);
 
-        var ggml = c.ggml_init(.{
+        const ggml = c.ggml_init(.{
             .mem_size   = params.mem_size,
             .mem_buffer = if (params.mem_buffer) |b| b.ptr else c.NULL,
         });
@@ -195,56 +195,56 @@ const Context = struct {
     //
 
     pub fn tensor(self: *Context, dtype: DataType, ne: []i32) !*Tensor {
-        var t = c.ggml_new_tensor(self.ggml, @enumToInt(dtype), @intCast(c_int, ne.size), ne.ptr);
+        const t = c.ggml_new_tensor(self.ggml, @intFromEnum(dtype), @intCast(ne.size), ne.ptr);
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn tensor1d(self: *Context, dtype: DataType, ne0: i32) !*Tensor {
-        var t = c.ggml_new_tensor_1d(self.ggml, @enumToInt(dtype), @intCast(c_int, ne0));
+        const t = c.ggml_new_tensor_1d(self.ggml, @intFromEnum(dtype), @intCast(ne0));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn tensor2d(self: *Context, dtype: DataType, ne0: i32, ne1: i32) !*Tensor {
-        var t = c.ggml_new_tensor_2d(self.ggml, @enumToInt(dtype), @intCast(c_int, ne0), @intCast(c_int, ne1));
+        const t = c.ggml_new_tensor_2d(self.ggml, @intFromEnum(dtype), @intCast(ne0), @intCast(ne1));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn tensor3d(self: *Context, dtype: DataType, ne0: i32, ne1: i32, ne2: i32) !*Tensor {
-        var t = c.ggml_new_tensor_3d(self.ggml, @enumToInt(dtype), @intCast(c_int, ne0), @intCast(c_int, ne1), @intCast(c_int, ne2));
+        const t = c.ggml_new_tensor_3d(self.ggml, @intFromEnum(dtype), @intCast(ne0), @intCast(ne1), @intCast(ne2));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn tensor4d(self: *Context, dtype: DataType, ne0: i32, ne1: i32, ne2: i32, ne3: i32) !*Tensor {
-        var t = c.ggml_new_tensor_4d(self.ggml, @enumToInt(dtype), 
-            @intCast(c_int, ne0), 
-            @intCast(c_int, ne1),
-            @intCast(c_int, ne2), 
-            @intCast(c_int, ne3));
+        const t = c.ggml_new_tensor_4d(self.ggml, @intFromEnum(dtype), 
+            @intCast(ne0), 
+            @intCast(ne1),
+            @intCast(ne2), 
+            @intCast(ne3));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn one(self: *Context, value: anytype) !*Tensor {
-        var t = switch (@TypeOf(value)) {
+        const t = switch (@TypeOf(value)) {
             i32 => c.ggml_new_i32(self.ggml, value),
             f32 => c.ggml_new_f32(self.ggml, value),
 
-            comptime_int => c.ggml_new_i32(self.ggml, @intCast(i32, value)),
-            comptime_float => c.ggml_new_f32(self.ggml, @floatCast(f32, value)),
+            comptime_int => c.ggml_new_i32(self.ggml, @intCast(value)),
+            comptime_float => c.ggml_new_f32(self.ggml, @floatCast(value)),
 
             else => @compileError("Unsupported type"),
         };
@@ -253,7 +253,7 @@ const Context = struct {
             return error.OutOfMemory;
         }
         
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     //
@@ -261,75 +261,75 @@ const Context = struct {
     //
 
     pub fn dup(self: *Context, t1: *Tensor, t2: *Tensor) !*Tensor {
-        var t = c.ggml_dup(self.ggml, @ptrCast(*c.ggml_tensor, t1), @ptrCast(*c.ggml_tensor, t2));
+        const t = c.ggml_dup(self.ggml, @ptrCast(t1), @ptrCast(t2));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn add(self: *Context, t1: *Tensor, t2: *Tensor) !*Tensor {
-        var t = c.ggml_add(self.ggml, @ptrCast(*c.ggml_tensor, t1), @ptrCast(*c.ggml_tensor, t2));
+        const t = c.ggml_add(self.ggml, @ptrCast(t1), @ptrCast(t2));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn sub(self: *Context, t1: *Tensor, t2: *Tensor) !*Tensor {
-        var t = c.ggml_sub(self.ggml, @ptrCast(*c.ggml_tensor, t1), @ptrCast(*c.ggml_tensor, t2));
+        const t = c.ggml_sub(self.ggml, @ptrCast(t1), @ptrCast(t2));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn mul(self: *Context, t1: *Tensor, t2: *Tensor) !*Tensor {
-        var t = c.ggml_mul(self.ggml, @ptrCast(*c.ggml_tensor, t1), @ptrCast(*c.ggml_tensor, t2));
+        const t = c.ggml_mul(self.ggml, @ptrCast(t1), @ptrCast(t2));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn div(self: *Context, t1: *Tensor, t2: *Tensor) !*Tensor {
-        var t = c.ggml_div(self.ggml, @ptrCast(*c.ggml_tensor, t1), @ptrCast(*c.ggml_tensor, t2));
+        const t = c.ggml_div(self.ggml, @ptrCast(t1), @ptrCast(t2));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn sqr(self: *Context, a: *Tensor) !*Tensor {
-        var t = c.ggml_sqr(self.ggml, @ptrCast(*c.ggml_tensor, a));
+        const t = c.ggml_sqr(self.ggml, @ptrCast(a));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn sqrt(self: *Context, a: *Tensor) !*Tensor {
-        var t = c.ggml_sqrt(self.ggml, @ptrCast(*c.ggml_tensor, a));
+        const t = c.ggml_sqrt(self.ggml, @ptrCast(a));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn sum(self: *Context, a: *Tensor) !*Tensor {
-        var t = c.ggml_sum(self.ggml, @ptrCast(*c.ggml_tensor, a));
+        const t = c.ggml_sum(self.ggml, @ptrCast(a));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 
     pub fn mul_mat(self: *Context, a: *Tensor, b: *Tensor) !*Tensor {
-        var t = c.ggml_mul_mat(self.ggml, @ptrCast(*c.ggml_tensor, a), @ptrCast(*c.ggml_tensor, b));
+        const t = c.ggml_mul_mat(self.ggml, @ptrCast(a), @ptrCast(b));
         if (t == null) {
             return error.OutOfMemory;
         }
-        return @ptrCast(*Tensor, t);
+        return @ptrCast(t);
     }
 };
 
@@ -350,7 +350,7 @@ const OptimizerError = error {
 const Optimizer = opaque {
     pub fn opt(context: ?Context, params: OptimizerParams, f: *Tensor) OptimizerError!void {
         const ggml = if (context != null) context.?.ggml else null;
-        const res = c.ggml_opt(ggml, params, @ptrCast(*c.ggml_tensor, f));
+        const res = c.ggml_opt(ggml, params, @ptrCast(f));
 
         switch (res) {
             c.GGML_OPT_DID_NOT_CONVERGE             => return error.DidNotConverge,
@@ -378,15 +378,15 @@ test "test0: basic add functionality" {
 
     const mem_size = 128 * 1024 * 1024;
 
-    var mem_buffer = try allocator.alloc(u8, mem_size);
+    const mem_buffer = try allocator.alloc(u8, mem_size);
     defer allocator.free(mem_buffer);
 
     var ctx0 = try Context.init(.{ .mem_size = mem_size, .mem_buffer = mem_buffer });
     defer ctx0.deinit();
 
-    var t1 = try ctx0.tensor1d(.f32, 10);
-    var t2 = try ctx0.tensor2d(.i16, 10, 20);
-    var t3 = try ctx0.tensor3d(.i32, 10, 20, 30);
+    const t1 = try ctx0.tensor1d(.f32, 10);
+    const t2 = try ctx0.tensor2d(.i16, 10, 20);
+    const t3 = try ctx0.tensor3d(.i32, 10, 20, 30);
 
     try expectEqual(t1.*.n_dims, 1);
     try expectEqual(t1.*.ne[0] , 10);
@@ -410,11 +410,12 @@ test "test0: basic add functionality" {
 }
 
 fn is_close(a: f32, b: f32, epsilon: f32) bool {
-    return std.math.fabs(a - b) < epsilon;
+    // return std.math.fabs(a - b) < epsilon;
+    return std.math.approxEqAbs(f32, a, b, epsilon);
 }
 
 test "test3" {
-    var params = .{
+    const params = ContextParams{
         .mem_size   = 1024 * 1024 * 1024,
         .mem_buffer = null,
     };
@@ -434,9 +435,9 @@ test "test3" {
     var l = try ctx0.tensor1d(.f32, NP);
 
     // regularization weight
-    var lambda = try ctx0.one(1e-5);
+    const lambda = try ctx0.one(1e-5);
 
-    const RndGen = std.rand.DefaultPrng;
+    const RndGen = std.Random.DefaultPrng;
     var rnd = RndGen.init(0);
 
     var j: usize = 0;
@@ -458,10 +459,10 @@ test "test3" {
     {
         // initial guess
         var x = (try ctx0.tensor1d(.f32, NF)).set(0.0);
-        c.ggml_set_param(ctx0.ggml, @ptrCast(*c.ggml_tensor, x));
+        c.ggml_set_param(ctx0.ggml, @ptrCast(x));
 
         // f = sum[(fj*x - l)^2]/n + lambda*|x^2|
-        var f =
+        const f =
             try ctx0.add(
                     try ctx0.div(
                         try ctx0.sum(

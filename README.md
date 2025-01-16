@@ -2,5 +2,6 @@
 (WIP) Tensor library for machine learning in Zig. Bindings to ggml for API development.
 
 ## Metadata
-License: Unlicense
-Zig compiler: v0.10.1
+- License: Unlicense
+- Version: v0.1.1-dev
+- Zig compiler: v0.14.0-dev

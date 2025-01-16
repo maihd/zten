@@ -1,40 +1,48 @@
 const std = @import("std");
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.Build) void {
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
+    // const mode = b.standardReleaseOptions();
 
-    const lib = createLibStep(b, mode);
-    lib.install();
+    const lib = createLibStep(b);
+    b.installArtifact(lib);
 
-    const main_tests = b.addTest("src/main.zig");
-    main_tests.setBuildMode(mode);
-    linkLibC(main_tests);
+    const main_tests = b.addTest(.{
+        .root_source_file = b.path("src/main.zig")
+    });
+    // main_tests.setBuildMode(mode);
+    linkLibC(b, main_tests);
 
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
 }
 
-pub fn linkLibC(step: *std.build.LibExeObjStep) void {
-    step.addIncludePath(thisDir() ++ "/libs/ggml/include");
-    step.addIncludePath(thisDir() ++ "/libs/ggml/include/ggml");
-    step.addCSourceFile(thisDir() ++ "/libs/ggml/src/ggml.c", &[_][]const u8 {
-        "-DGGML_DEBUG=0",
+pub fn linkLibC(b: *std.Build, step: *std.Build.Step.Compile) void {
+    step.addIncludePath(b.path(thisDir() ++ "/libs/ggml/include"));
+    step.addIncludePath(b.path(thisDir() ++ "/libs/ggml/include/ggml"));
+    step.addCSourceFile(.{
+        .file = b.path(thisDir() ++ "/libs/ggml/src/ggml.c"), 
+        .flags = &[_][]const u8 {
+            "-DGGML_DEBUG=0",
+        }
     });
     step.linkLibC();
 }
 
-pub fn createLibStep(b: *std.build.Builder, mode: std.builtin.Mode) *std.build.LibExeObjStep {
-    const lib = b.addStaticLibrary("zten", "src/main.zig");
-    lib.setBuildMode(mode);
+pub fn createLibStep(b: *std.Build) *std.Build.Step.Compile {
+    const lib = b.addStaticLibrary(.{
+        .name = "zten",
+        .root_source_file = b.path("src/main.zig"),
+        .target = b.standardTargetOptions(.{})
+    });
 
-    linkLibC(lib);
+    linkLibC(b, lib);
     return lib;
 }
 
-pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep, mode: std.builtin.Mode) void {
-    const lib = createLibStep(b, mode);
+pub fn link(b: *std.Build, step: *std.Build.Step.Compile) void {
+    const lib = createLibStep(b);
     step.dependOn(&lib.step);
 }
 
